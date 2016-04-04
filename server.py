@@ -55,8 +55,12 @@ def take_image():
     c.execute("SELECT * FROM image ORDER BY timestamp DESC LIMIT 1")
     row = c.fetchone()
 
+    if row is None:
+	filename = "image0000.jpg"
+    else:
+        filename = "image" + str(row[0] + 1).zfill(4) + ".jpg"
+
     camera = picamera.PiCamera()
-    filename = "image" + str(row[0] + 1).zfill(4) + ".jpg"
     camera.capture('./images/' + filename)
     camera.close()
 
