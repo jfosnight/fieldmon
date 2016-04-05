@@ -27,7 +27,7 @@ def index():
 @route('/node')
 @route('/node/')
 def node():
-    return "Node Home Page"
+    return template('nodes.tpl', nodes=[])
 
 @route('/node/<num>')
 def node_id(num):
@@ -59,16 +59,56 @@ def take_image():
     filename = "image" + str(row[0] + 1).zfill(4) + ".jpg"
 
     camera.awb_mode = 'off'
-    camera.awb_gains = (1.0,0.5)
+    camera.awb_gains = (0.88,0.58)
     
     camera.capture('./images/' + filename)
     camera.close()
 
-    
     c.execute("INSERT INTO image (file_name) VALUES (?)", (filename, ))
-    conn.commit()
-    conn.close()
-    yield "Done"
+    json_response = {}
+    try:
+        
+        conn = sqlite3.connect("data.db")
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        c.execute("SELECT * FROM image ORDER BY timestamp DESC LIMIT 1")
+        row = c.fetchone()
+
+        if row is None:
+            filename = "image0000.jpg"
+        else:
+            filename = "image" + str(row[0] + 1).zfill(4) + ".jpg"
+
+        camera = picamera.PiCamera()
+
+        sleep(1.5)
+        
+        camera.capture('./images/' + filename)
+        camera.close()
+
+        
+        c.execute("INSERT INTO image (file_name) VALUES (?)", (filename, ))
+        
+        c.execute("SELECT * FROM image WHERE id = ?", (c.lastrowid, ))
+        body = {}
+        row = c.fetchone()
+        print row
+        
+        conn.commit()
+        
+        for key in row.keys():
+            body[key] = row[key]
+
+        json_response['status'] = "success"
+        json_response['body'] = body
+
+        conn.close()
+    except Exception as e:
+        json_response['status'] = "error"
+        json_response['body'] = e.args
+    return json_response
+
 
 @route('/image/<filename>')
 def image(filename):
