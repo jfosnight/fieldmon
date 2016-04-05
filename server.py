@@ -57,6 +57,10 @@ def take_image():
 
     camera = picamera.PiCamera()
     filename = "image" + str(row[0] + 1).zfill(4) + ".jpg"
+
+    camera.awb_mode = 'off'
+    camera.awb_gains = (1.0,0.5)
+    
     camera.capture('./images/' + filename)
     camera.close()
 
