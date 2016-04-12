@@ -5,20 +5,23 @@ This project will develop an application to run on a compainion computer (Raspbe
 
 
 ## Installation
-Install NodeJS
-    From the website
-	`curl -sL https://deb.nodesource.com/setup_4.x | sudo -E bash -`
-	`sudo apt-get install -y nodejs`
+### Install NodeJS
 
-`sudo npm install --global bower`
-`sudo pip install gevent bottle`
-`sudo python init_new.py`
+(From the website)
+
+	curl -sL https://deb.nodesource.com/setup_4.x | sudo -E bash -
+	sudo apt-get install -y nodejs
+
+### Install Other Dependencies
+	sudo npm install --global bower
+	sudo pip install gevent bottle
+	sudo python init_new.py
 
 
 ## Resources
-[Making a Mavlink WiFi bridge using the Raspberry Pi](http://dev.ardupilot.com/wiki/making-a-mavlink-wifi-bridge-using-the-raspberry-pi/)
-[Installing Node JS - Ubuntu](https://nodejs.org/en/download/package-manager/)
-[Ingrafram (IR Photo Processing)](http://infragram.org/)
+* [Making a Mavlink WiFi bridge using the Raspberry Pi](http://dev.ardupilot.com/wiki/making-a-mavlink-wifi-bridge-using-the-raspberry-pi/)
+* [Installing Node JS - Ubuntu](https://nodejs.org/en/download/package-manager/)
+* [Ingrafram (IR Photo Processing)](http://infragram.org/)
 
 
 
