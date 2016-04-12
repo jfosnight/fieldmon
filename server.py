@@ -1,9 +1,9 @@
 from gevent import monkey; monkey.patch_all()
 
 from time import sleep
-from bottle import route, run, template, debug, static_file
+from bottle import route, run, template, debug, static_file, request, redirect
 import sqlite3
-import picamera
+#import picamera
 
 @route('/stream')
 def stream():
@@ -23,16 +23,81 @@ def bower(file_path):
 def index():
     return static_file("index.html", ".")
 
-
+# Pages for Nodes
 @route('/node')
 @route('/node/')
 def node():
-    return template('nodes.tpl', nodes=[])
+    conn = sqlite3.connect("data.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM node")
+    rows = c.fetchall()
+
+    return template('nodes.tpl', nodes=rows)
+
+@route('/node/new', method='GET')
+def node_new():
+    return template('node_new.tpl')
+
+@route('/node/new', method='POST')
+def node_create():
+
+    name = request.forms.get('name')
+    lat = request.forms.get('lat')
+    lng = request.forms.get('lng')
+
+    conn = sqlite3.connect("data.db")
+    c = conn.cursor()
+    c.execute("INSERT INTO node (name, lat, lng) VALUES (?,?,?)", (name, lat, lng, ))
+    conn.commit()
+
+    redirect("/node/")
+
+
+@route('/node/<num>', method='POST')
+def node_id(num):
+    name = request.forms.get('name')
+    lat = request.forms.get('lat')
+    lng = request.forms.get('lng')
+
+    conn = sqlite3.connect("data.db")
+    c = conn.cursor()
+    c.execute("UPDATE node SET name=?, lat=?, lng=? WHERE id=?", (name, lat, lng, num,))
+    conn.commit()
+
+    redirect("/node/" + str(num))
+
+
 
 @route('/node/<num>')
 def node_id(num):
-    return "Node: " + str(num)
+    conn = sqlite3.connect("data.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
 
+    c.execute("SELECT * FROM node WHERE id = ?", (num, ))
+    row = c.fetchone()
+
+    return template('node.tpl', node=row)
+
+
+
+## Sensor Data
+@route('/node/<num>/data', method='GET')
+def node_data(num):
+    return "Node Data: " + str(num)
+
+route('/node/<num>/data', method='POST')
+def node_data_post(num):
+    print request
+
+    return "Node Data: " + str(num)
+
+
+
+
+## Pages for images
 @route('/image')
 @route('/image/')
 def images():
@@ -47,8 +112,9 @@ def images():
 
 @route('/image/take')
 def take_image():
-    yield "Taking Picture<br><br>"
 
+
+    """
     conn = sqlite3.connect("data.db")
     c = conn.cursor()
 
@@ -65,6 +131,8 @@ def take_image():
     camera.close()
 
     c.execute("INSERT INTO image (file_name) VALUES (?)", (filename, ))
+    """
+
     json_response = {}
     try:
         
@@ -114,5 +182,8 @@ def take_image():
 def image(filename):
     return static_file(filename, "./images")
 
+
+## Startup Server
 debug(True)
 run(host='0.0.0.0', port=80, reloader=True, server='gevent') #server='bjoern', 
+

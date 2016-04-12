@@ -3,7 +3,7 @@
 	<head>
 		<meta content="width=device-width,minimum-scale=1.0" name="viewport">
 	
-		<title>Images - FieldMon</title>
+		<title>Nodes - FieldMon</title>
 		<link rel="stylesheet" href="/bower/uikit/css/uikit.almost-flat.min.css">
 		<script src="/bower/jquery/dist/jquery.min.js"></script>
 		<script src="/bower/uikit/js/uikit.min.js"></script>
@@ -29,24 +29,30 @@
 		<div id="content">
 			<h2>Sensor Nodes</h2>
 			<br>
+            <a class='uk-button uk-button-primary' href='/node/new'>
+                <i class='uk-icon-plus'></i>
+                New Node
+            </a>
 			
 			<table class='uk-table uk-table-striped uk-table-condensed'>
 				<thead>
 					<tr>
+                        <th></th>
 						<th>ID</th>
 						<th>Name</th>
 						<th>Lat</th>
-						<th>Long</th>
-						<th></th>
+                        <th>Lng</th>
+                        <th>Timestamp</th>
 					</tr>
 				</thead>
 				% for node in nodes:
 				<tr>
-					<td>{{node[0]}}</td>
-					<td>{{node[1]}}</td>
-					<td>{{node[2]}}</td>
-					<td>{{node[3]}}</td>
-					<td><a href="/image/{{image[1]}}" target="_blank">Node {{node[3]}}</a></td>
+                    <td><a class='uk-button uk-button-mini uk-button-primary' href='/node/{{node['id']}}'><i class='uk-icon-eye'></i> View</a></td>
+					<td>{{node['id']}}</td>
+					<td>{{node['name']}}</td>
+					<td>{{node['lat']}}</td>
+                    <td>{{node['lng']}}</td>
+                    <td>{{node['timestamp']}}</td>
 				</tr>
 				% end
 			</table>
