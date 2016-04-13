@@ -99,6 +99,8 @@ def node_data_post(num):
     temp_file = tempfile.TemporaryFile()
     request.files.data.save(temp_file)
 
+    print request.body.read()
+
     temp_file.seek(0)
     html = "<table>"
     data = []
