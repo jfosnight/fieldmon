@@ -18,11 +18,12 @@ This project will develop an application to run on a compainion computer (Raspbe
 	sudo python init_new.py
 
 
+## AP Setup
+SSID: drone  
+PW: dronecomm
+
+
 ## Resources
 * [Making a Mavlink WiFi bridge using the Raspberry Pi](http://dev.ardupilot.com/wiki/making-a-mavlink-wifi-bridge-using-the-raspberry-pi/)
 * [Installing Node JS - Ubuntu](https://nodejs.org/en/download/package-manager/)
 * [Ingrafram (IR Photo Processing)](http://infragram.org/)
-
-
-
-
