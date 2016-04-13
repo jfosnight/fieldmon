@@ -58,6 +58,24 @@
                 </div>                
             </form>			
 		</div>
+
+
+		<script>
+		if ("geolocation" in navigator) {
+	    	
+			navigator.geolocation.getCurrentPosition(function(position) {
+				$("[name='lat']").val(position.coords.latitude);
+				$("[name='lng']").val(position.coords.longitude);
+			}, function(){
+				alert("Issue Fetching Position");			
+			}, {enableHighAccuracy: true});
+
+
+		} else {
+			/* geolocation IS NOT available */
+		}
+
+		</script>
 	</body>
 </html>
 

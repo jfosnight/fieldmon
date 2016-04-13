@@ -3,6 +3,7 @@ from gevent import monkey; monkey.patch_all()
 from time import sleep
 from bottle import route, run, template, debug, static_file, request, redirect
 import sqlite3
+import tempfile
 #import picamera
 
 @route('/stream')
@@ -79,21 +80,61 @@ def node_id(num):
     c.execute("SELECT * FROM node WHERE id = ?", (num, ))
     row = c.fetchone()
 
-    return template('node.tpl', node=row)
+    c.execute("SELECT * FROM sensor_data WHERE node_id = ?", tuple(num))
+    sensor_data = c.fetchall()
+
+    print sensor_data
+
+    return template('node.tpl', node=row, sensor_data=sensor_data)
 
 
 
 ## Sensor Data
 @route('/node/<num>/data', method='GET')
 def node_data(num):
-    return "Node Data: " + str(num)
+    return template('data_upload.tpl')
 
-route('/node/<num>/data', method='POST')
+@route('/node/<num>/data', method='POST')
 def node_data_post(num):
-    print request
+    temp_file = tempfile.TemporaryFile()
+    request.files.data.save(temp_file)
 
-    return "Node Data: " + str(num)
+    temp_file.seek(0)
+    html = "<table>"
+    data = []
+    for line in temp_file.readlines():
+        line = line.strip()
+        values = line.split(",")
+        if len(data) == 0:
+            values.append("node_id")
+        else:
+            values.append(num)
+        data.append(tuple(values))
 
+        html += "<tr>"
+        for v in values:
+            html += "<td>" + v + "</td>"
+        html += "</tr>"
+
+    html += "</table>"
+
+    header = data.pop(0)
+    placeholder = "("
+    i = 0
+    while(i < len(header) - 1):
+        placeholder += "?,"
+        i += 1
+    placeholder += "?)"
+
+    sqlText = "INSERT INTO sensor_data " + str(header) + " VALUES " + str(placeholder)
+
+    conn = sqlite3.connect("data.db")
+    c = conn.cursor()
+    c.executemany(sqlText, data)
+    conn.commit()
+
+
+    return html
 
 
 
@@ -108,7 +149,7 @@ def images():
     rows = c.fetchall()
 
     return template('images.tpl', images=rows)
-    
+
 
 @route('/image/take')
 def take_image():
@@ -126,7 +167,7 @@ def take_image():
 
     camera.awb_mode = 'off'
     camera.awb_gains = (0.88,0.58)
-    
+
     camera.capture('./images/' + filename)
     camera.close()
 
@@ -135,7 +176,7 @@ def take_image():
 
     json_response = {}
     try:
-        
+
         conn = sqlite3.connect("data.db")
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
@@ -151,20 +192,20 @@ def take_image():
         camera = picamera.PiCamera()
 
         sleep(1.5)
-        
+
         camera.capture('./images/' + filename)
         camera.close()
 
-        
+
         c.execute("INSERT INTO image (file_name) VALUES (?)", (filename, ))
-        
+
         c.execute("SELECT * FROM image WHERE id = ?", (c.lastrowid, ))
         body = {}
         row = c.fetchone()
         print row
-        
+
         conn.commit()
-        
+
         for key in row.keys():
             body[key] = row[key]
 
@@ -185,5 +226,4 @@ def image(filename):
 
 ## Startup Server
 debug(True)
-run(host='0.0.0.0', port=80, reloader=True, server='gevent') #server='bjoern', 
-
+run(host='0.0.0.0', port=80, reloader=True, server='gevent') #server='bjoern',
