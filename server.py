@@ -97,9 +97,11 @@ def node_data(num):
 @route('/node/<num>/data', method='POST')
 def node_data_post(num):
     temp_file = tempfile.TemporaryFile()
-    request.files.data.save(temp_file)
 
-    print request.body.read()
+    if request.files.data:
+        request.files.data.save(temp_file)
+    else:
+        temp_file.write(request.body.read())
 
     temp_file.seek(0)
     html = "<table>"
@@ -155,26 +157,6 @@ def images():
 
 @route('/image/take')
 def take_image():
-
-
-    """
-    conn = sqlite3.connect("data.db")
-    c = conn.cursor()
-
-    c.execute("SELECT * FROM image ORDER BY timestamp DESC LIMIT 1")
-    row = c.fetchone()
-
-    camera = picamera.PiCamera()
-    filename = "image" + str(row[0] + 1).zfill(4) + ".jpg"
-
-    camera.awb_mode = 'off'
-    camera.awb_gains = (0.88,0.58)
-
-    camera.capture('./images/' + filename)
-    camera.close()
-
-    c.execute("INSERT INTO image (file_name) VALUES (?)", (filename, ))
-    """
 
     json_response = {}
     try:
