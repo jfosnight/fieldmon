@@ -26,9 +26,9 @@
 
 	      function drawChart() {
 	        var data = google.visualization.arrayToDataTable([
-	          ['Timestamp', 'Temperature', 'Humidity'],
+	          ['Timestamp', 'Temperature', 'Humidity']
 			  % for data in sensor_data:
-			  	[{{data['timestamp']}},{{data['temperature']}},{{data['humidity']}}],
+			  	,[{{data['timestamp']}},{{data['temperature']}},{{data['humidity']}}]
 			  % end
 	        ]);
 
@@ -38,9 +38,14 @@
 	          legend: { position: 'bottom' }
 	        };
 
-	        var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
-
-	        chart.draw(data, options);
+		
+		% if sensor_data:
+	        	var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
+	        	chart.draw(data, options);
+		% else:
+			document.getElementById("curve_chart").innerHTML = "<b>No Data Uploaded Yet</b>"
+		% end
+			
 	      }
 	    </script>
 
@@ -65,6 +70,9 @@
 		            <br>
 		            <b>Longitude</b><br>
 		            {{node['lng']}}<br>
+
+			    <br>
+			    <a class="uk-button uk-button-primary" href="/node/{{node['id']}}/data">Upload Data</a>
 
 		            <br>
 		            <br>

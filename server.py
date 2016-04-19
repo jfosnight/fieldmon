@@ -4,7 +4,11 @@ from time import sleep
 from bottle import route, run, template, debug, static_file, request, redirect
 import sqlite3
 import tempfile
-#import picamera
+
+try:
+    import picamera
+except:
+    print "Picamera Library Not Found"
 
 @route('/stream')
 def stream():
@@ -82,8 +86,6 @@ def node_id(num):
 
     c.execute("SELECT * FROM sensor_data WHERE node_id = ?", tuple(num))
     sensor_data = c.fetchall()
-
-    print sensor_data
 
     return template('node.tpl', node=row, sensor_data=sensor_data)
 
