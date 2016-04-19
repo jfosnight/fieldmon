@@ -1,16 +1,20 @@
 from gevent import monkey; monkey.patch_all()
 
 from time import sleep
-from bottle import route, run, template, debug, static_file, request, redirect
+from bottle import route, run, template, debug, static_file, request, redirect, abort, Bottle
 import sqlite3
 import tempfile
+
+import dronekit
 
 try:
     import picamera
 except:
-    print "Picamera Library Not Found"
+    pass
 
-@route('/stream')
+app = Bottle()
+
+@app.route('/stream')
 def stream():
     for x in range(0,50):
         yield str(float(x)/10) + "<br>"
@@ -19,18 +23,18 @@ def stream():
 
 
 # Setup for Static Bower Files to be served.
-@route('/bower/<file_path:re:.+>')
+@app.route('/bower/<file_path:re:.+>')
 def bower(file_path):
     return static_file(file_path, "./bower_components")
 
 # Server Index Page
-@route('/')
+@app.route('/')
 def index():
     return static_file("index.html", ".")
 
 # Pages for Nodes
-@route('/node')
-@route('/node/')
+@app.route('/node')
+@app.route('/node/')
 def node():
     conn = sqlite3.connect("data.db")
     conn.row_factory = sqlite3.Row
@@ -41,11 +45,11 @@ def node():
 
     return template('nodes.tpl', nodes=rows)
 
-@route('/node/new', method='GET')
+@app.route('/node/new', method='GET')
 def node_new():
     return template('node_new.tpl')
 
-@route('/node/new', method='POST')
+@app.route('/node/new', method='POST')
 def node_create():
 
     name = request.forms.get('name')
@@ -60,7 +64,7 @@ def node_create():
     redirect("/node/")
 
 
-@route('/node/<num>', method='POST')
+@app.route('/node/<num>', method='POST')
 def node_id(num):
     name = request.forms.get('name')
     lat = request.forms.get('lat')
@@ -75,7 +79,7 @@ def node_id(num):
 
 
 
-@route('/node/<num>')
+@app.route('/node/<num>')
 def node_id(num):
     conn = sqlite3.connect("data.db")
     conn.row_factory = sqlite3.Row
@@ -92,11 +96,11 @@ def node_id(num):
 
 
 ## Sensor Data
-@route('/node/<num>/data', method='GET')
+@app.route('/node/<num>/data', method='GET')
 def node_data(num):
     return template('data_upload.tpl')
 
-@route('/node/<num>/data', method='POST')
+@app.route('/node/<num>/data', method='POST')
 def node_data_post(num):
     temp_file = tempfile.TemporaryFile()
 
@@ -145,8 +149,8 @@ def node_data_post(num):
 
 
 ## Pages for images
-@route('/image')
-@route('/image/')
+@app.route('/image')
+@app.route('/image/')
 def images():
     conn = sqlite3.connect("data.db")
     c = conn.cursor()
@@ -157,7 +161,7 @@ def images():
     return template('images.tpl', images=rows)
 
 
-@route('/image/take')
+@app.route('/image/take')
 def take_image():
 
     json_response = {}
@@ -205,11 +209,136 @@ def take_image():
     return json_response
 
 
-@route('/image/<filename>')
+@app.route('/image/<filename>')
 def image(filename):
     return static_file(filename, "./images")
 
 
-## Startup Server
+global vehicle
+vehicle = None
+@app.route('/drone/connect')
+def drone_connect():
+    global vehicle
+    if not vehicle:
+        yield "Connecting to Drone..."
+        vehicle = dronekit.connect("tcp:127.0.0.1:5760", wait_ready=True)
+        yield "Connected to Drone"
+    else:
+        yield "Already Connected"
+
+
+@app.route('/drone/disconnect')
+def drone_disconnect():
+    global vehicle
+    if vehicle:
+        vehicle.close()
+        vehicle = None
+        return "Drone is Disconnected"
+    else:
+        return "Drone was alrady disconnected"
+
+
+@app.route('/drone')
+@app.route('/drone/')
+def drone_status():
+    return template("drone.tpl")
+
+
+@app.route("/drone/move")
+def drone_move():
+    if not vehicle:
+        return "Drone Not Connected"
+
+
+    vehicle.armed = True
+    # Set mode to guided - this is optional as the goto method will change the mode if needed.
+    vehicle.mode = dronekit.VehicleMode("GUIDED")
+
+    vehicle.airspeed = 5
+
+    while not vehicle.armed:
+        sleep(0.1)
+
+    vehicle.simple_takeoff(20)
+
+    # Set the target location in global-relative frame
+    #a_location = dronekit.LocationGlobalRelative(-35.35000, 149.166022, 30)
+    #vehicle.simple_goto(a_location)
+    return "Flight Path Set"
+
+
+@app.route('/drone/status')
+def drone_status():
+    return template("drone_status.tpl")
+
+@app.route("/ws/drone/status")
+def ws_drone_status():
+    wsock = request.environ.get('wsgi.websocket')
+    if not wsock:
+        abort(400, 'Expected WebSocket request.')
+
+    while True:
+        try:
+            if vehicle:
+                status = ""
+                status += "Location: %s <br>" % vehicle.location.global_frame
+                status += "Local Location: %s <br>" % vehicle.location.local_frame
+                #status += "Altitude: %s <br>" % vehicle.location.global_frame.alt
+                status += " GPS: %s <br>" % vehicle.gps_0
+                status += " Battery: %s <br>" % vehicle.battery
+                status += " Last Heartbeat: %s <br>" % vehicle.last_heartbeat
+                status += " Is Armable?: %s <br>" % vehicle.is_armable
+                status += " Armed: %s <br>" % vehicle.armed
+                status += " System status: %s <br>" % vehicle.system_status.state
+                status += " Mode: %s <br>" % vehicle.mode.name
+
+                wsock.send(status)
+                sleep(0.25)
+            else:
+                wsock.close()
+                return
+
+        except WebSocketError:
+            break
+
+@app.route('/websocket')
+def handle_websocket():
+    wsock = request.environ.get('wsgi.websocket')
+    if not wsock:
+        abort(400, 'Expected WebSocket request.')
+
+    print "Websocket Initialized"
+    print wsock
+
+    i = 0
+    while True:
+        try:
+            if wsock.closed:
+                print "Socket Closed"
+                return
+
+            wsock.send(str(i))
+            sleep(1)
+            i += 1
+
+        except WebSocketError:
+            print "Connection Closed Unexpectedly"
+            break
+
+@app.route('/socket')
+def index_2():
+    return template("websocket.tpl")
+
+
 debug(True)
-run(host='0.0.0.0', port=80, reloader=True, server='gevent') #server='bjoern',
+
+from gevent.pywsgi import WSGIServer
+from geventwebsocket import WebSocketError
+from geventwebsocket.handler import WebSocketHandler
+server = WSGIServer(("0.0.0.0", 80), app,
+                    handler_class=WebSocketHandler)
+server.serve_forever()
+
+## Startup Server
+#debug(True)
+#run(host='0.0.0.0', port=80, reloader=True, server='gevent') #server='bjoern',
