@@ -14,7 +14,7 @@ This project will develop an application to run on a compainion computer (Raspbe
 
 ### Install Other Dependencies
 	sudo npm install --global bower
-	sudo pip install gevent bottle
+	sudo pip install gevent bottle gevent-websocket
 	sudo python init_new.py
 
 

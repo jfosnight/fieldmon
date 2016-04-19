@@ -220,11 +220,10 @@ vehicle = None
 def drone_connect():
     global vehicle
     if not vehicle:
-        yield "Connecting to Drone..."
         vehicle = dronekit.connect("tcp:127.0.0.1:5760", wait_ready=True)
-        yield "Connected to Drone"
+        return "Connected to Drone"
     else:
-        yield "Already Connected"
+        return "Already Connected"
 
 
 @app.route('/drone/disconnect')
@@ -235,7 +234,7 @@ def drone_disconnect():
         vehicle = None
         return "Drone is Disconnected"
     else:
-        return "Drone was alrady disconnected"
+        return "Drone was already disconnected"
 
 
 @app.route('/drone')
@@ -244,8 +243,8 @@ def drone_status():
     return template("drone.tpl")
 
 
-@app.route("/drone/move")
-def drone_move():
+@app.route("/drone/takeoff")
+def drone_takeoff():
     if not vehicle:
         return "Drone Not Connected"
 
@@ -264,7 +263,35 @@ def drone_move():
     # Set the target location in global-relative frame
     #a_location = dronekit.LocationGlobalRelative(-35.35000, 149.166022, 30)
     #vehicle.simple_goto(a_location)
+    return "Taking Off"
+
+
+@app.route("/drone/move")
+def drone_move():
+    if not vehicle:
+        return "Drone Not Connected"
+
+    # Set mode to guided - this is optional as the goto method will change the mode if needed.
+    vehicle.mode = dronekit.VehicleMode("GUIDED")
+
+    #vehicle.airspeed = 5
+
+    if not vehicle.armed:
+        vehicle.armed = True
+        while not vehicle.armed:
+            sleep(0.1)
+
+
+    # Set the target location in global-relative frame
+    a_location = dronekit.LocationGlobalRelative(-35.36200, 149.166022, 30)
+    vehicle.simple_goto(a_location)
     return "Flight Path Set"
+
+
+@app.route("/drone/rtl")
+def drone_rtl():
+    vehicle.mode = dronekit.VehicleMode("RTL")
+    return "Returning Home"
 
 
 @app.route('/drone/status')
