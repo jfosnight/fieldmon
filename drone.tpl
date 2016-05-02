@@ -22,7 +22,7 @@
 			<ul class='uk-navbar-nav'>
 				<li><a href="/"><i class='uk-icon-home'></i> Home</a></li>
 			</ul>
-			
+
 			<div class='uk-navbar-content uk-navbar-center uk-navbar-brand'>FieldMon</div>
 		</div>
 
@@ -34,6 +34,7 @@
 			<br>
 			<button id='takeoff-btn' class="uk-button">Take Off</button>&nbsp;&nbsp;&nbsp;&nbsp;
 			<button id='move-btn' class="uk-button">Move</button>&nbsp;&nbsp;&nbsp;&nbsp;
+			<button id='mission-btn' class="uk-button uk-button-primary">Fly Mission</button>&nbsp;&nbsp;&nbsp;&nbsp;
 			<button id='rtl-btn' class="uk-button">Return Home</button><br>
             <br>
             Drone Connection Status: <span id="status"></span>
@@ -83,6 +84,16 @@
 				$("#status").html("Sending Command");
                 $.ajax({
 					url: "/drone/move",
+					success: function(response){
+						$("#status").html(response);
+					}
+				});
+            });
+
+			$("#mission-btn").on("click", function(){
+				$("#status").html("Sending Command");
+                $.ajax({
+					url: "/drone/mission",
 					success: function(response){
 						$("#status").html(response);
 					}

@@ -102,6 +102,8 @@ def node_data(num):
 
 @app.route('/node/<num>/data', method='POST')
 def node_data_post(num):
+    global droneContinue
+
     temp_file = tempfile.TemporaryFile()
 
     if request.files.data:
@@ -143,7 +145,8 @@ def node_data_post(num):
     c.executemany(sqlText, data)
     conn.commit()
 
-
+    if dronePause:
+        droneContinue = True
     return html
 
 
@@ -215,6 +218,89 @@ def image(filename):
 
 
 global vehicle
+global controlThread
+global controlStatus
+global dronePause
+global droneContinue
+
+
+controlStatus = ""
+
+import threading
+def drone_flight():
+    global controlStatus, droneContinue, dronePause
+    if not vehicle:
+        controlStatus = "Disconnected"
+        return "drone not connected"
+
+    flight_path = get_flight_path()
+
+    controlStatus = "Arming"
+    ## Arm Vehcile
+    vehicle.mode = dronekit.VehicleMode("GUIDED")
+    vehicle.airspeed = 5
+    if not vehicle.armed:
+        vehicle.armed = True
+        while not vehicle.armed:
+            sleep(0.1)
+
+    if vehicle.mode.name != "GUIDED":
+        controlStatus = "Not in guided mode."
+        return "Error"
+
+    controlStatus = "Takeoff"
+    ## Takeoff to 20 meters
+    vehicle.simple_takeoff(20)
+
+    controlStatus = "Waiting to reach altitude"
+    ## Wait for it to reach Altitude
+    while (vehicle.location.local_frame.down or 0) * -1 < 20 * 0.95:
+        sleep(0.1)
+
+
+    ## Fly to waypoint
+    #controlStatus = "Flying to Waypoint"
+    #a_location = dronekit.LocationGlobalRelative(-35.36300, 149.166022, 30)
+    #vehicle.simple_goto(a_location)
+
+    #while vehicle.location.global_frame.lat > -35.362990  and vehicle.location.global_frame.lon < 149.16600:
+    #   sleep(0.1)
+
+    # dronePause = True
+    # droneContinue = False
+
+    controlStatus = "Waiting for Upload"
+    sleep(5)
+    # while not droneContinue:
+    #     sleep(0.1)
+    # droneContinue = False
+
+    controlStatus = "Returning Home"
+    vehicle.mode = dronekit.VehicleMode("RTL")
+
+    while vehicle.system_status.state == "ACTIVE":
+        sleep(0.1)
+
+    controlStatus = "Mission Complete"
+    return "Done"
+
+
+
+def get_flight_path():
+    conn = sqlite3.connect("data.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM node")
+    rows = c.fetchall()
+
+    flight_path = []
+    for row in rows:
+        flight_path.append({"lat" : row['lat'], "lng" : row['lng']})
+
+    return flight_path
+
+
 vehicle = None
 @app.route('/drone/connect')
 def drone_connect():
@@ -293,6 +379,10 @@ def drone_rtl():
     vehicle.mode = dronekit.VehicleMode("RTL")
     return "Returning Home"
 
+@app.route("/drone/mission")
+def drone_mission():
+    threading.Thread(target=drone_flight, name='drone').start()
+    return "Mission Started"
 
 @app.route('/drone/status')
 def drone_status():
@@ -310,14 +400,17 @@ def ws_drone_status():
                 status = ""
                 status += "Location: %s <br>" % vehicle.location.global_frame
                 status += "Local Location: %s <br>" % vehicle.location.local_frame
+                status += "Down: %f<br>" % (vehicle.location.local_frame.down or 0)
                 #status += "Altitude: %s <br>" % vehicle.location.global_frame.alt
                 status += " GPS: %s <br>" % vehicle.gps_0
                 status += " Battery: %s <br>" % vehicle.battery
                 status += " Last Heartbeat: %s <br>" % vehicle.last_heartbeat
                 status += " Is Armable?: %s <br>" % vehicle.is_armable
                 status += " Armed: %s <br>" % vehicle.armed
-                status += " System status: %s <br>" % vehicle.system_status.state
+                status += " System status: <b>%s</b> <br>" % vehicle.system_status.state
                 status += " Mode: %s <br>" % vehicle.mode.name
+                status += "<br>"
+                status += "Mission Status: %s<br>" % controlStatus
 
                 wsock.send(status)
                 sleep(0.25)
