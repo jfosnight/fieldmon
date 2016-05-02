@@ -110,6 +110,7 @@ def node_data_post(num):
         temp_file.write(request.body.read())
 
     temp_file.seek(0)
+    
     html = "<table>"
     data = []
     for line in temp_file.readlines():
@@ -338,6 +339,8 @@ from geventwebsocket.handler import WebSocketHandler
 server = WSGIServer(("0.0.0.0", 80), app,
                     handler_class=WebSocketHandler)
 server.serve_forever()
+
+print "Server Started"
 
 ## Startup Server
 #debug(True)
