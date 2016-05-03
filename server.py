@@ -111,6 +111,10 @@ def node_data_post(num):
     else:
         temp_file.write(request.body.read())
 
+
+    temp_file.seek(0)
+    print temp_file.read()
+
     temp_file.seek(0)
     
     html = "<table>"
@@ -224,6 +228,8 @@ global controlStatus
 global dronePause
 global droneContinue
 
+dronePause = True
+droneContinue = True
 
 controlStatus = ""
 
@@ -251,11 +257,11 @@ def drone_flight():
 
     controlStatus = "Takeoff"
     ## Takeoff to 20 meters
-    vehicle.simple_takeoff(20)
+    vehicle.simple_takeoff(10)
 
     controlStatus = "Waiting to reach altitude"
     ## Wait for it to reach Altitude
-    while (vehicle.location.local_frame.down or 0) * -1 < 20 * 0.95:
+    while (vehicle.location.local_frame.down or 0) * -1 < 10 * 0.95:
         sleep(0.1)
 
 
@@ -307,7 +313,8 @@ vehicle = None
 def drone_connect():
     global vehicle
     if not vehicle:
-        vehicle = dronekit.connect("tcp:127.0.0.1:5760", wait_ready=True)
+	vehicle = dronekit.connect("/dev/ttyACM0", wait_ready=True)
+        #vehicle = dronekit.connect("tcp:127.0.0.1:5760", wait_ready=True)
         return "Connected to Drone"
     else:
         return "Already Connected"
