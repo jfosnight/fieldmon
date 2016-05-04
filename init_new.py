@@ -16,6 +16,8 @@ c.execute("CREATE TABLE IF NOT EXISTS image \
     file_name TEXT, \
     lat TEXT, \
     lng TEXT, \
+    alt TEXT, \
+    heading TEXT, \
     timestamp TEXT DEFAULT CURRENT_TIMESTAMP)")
 
 ## Setup Sensor Data Table

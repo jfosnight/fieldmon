@@ -36,7 +36,7 @@
 			<br>
 			<hr>
 			<button id='takeoff-btn' class="uk-button">Take Off</button>&nbsp;&nbsp;&nbsp;&nbsp;
-			<button id='move-btn' class="uk-button">Move</button>&nbsp;&nbsp;&nbsp;&nbsp;
+			<!-- <button id='move-btn' class="uk-button">Move</button>&nbsp;&nbsp;&nbsp;&nbsp; -->
 			<button id='mission-btn' class="uk-button uk-button-primary">Fly Mission</button>&nbsp;&nbsp;&nbsp;&nbsp;
 			<button id='rtl-btn' class="uk-button">Return Home</button><br>
 			<br>
@@ -139,6 +139,8 @@
 	                };
 					ws.onclose = function(){
 						$("#ws-status").html("Disconnected");
+						var html = "<div class='uk-badge uk-badge-danger uk-text-large'>Disconnected</div>";
+						$("#connection-status").html(html);
 					}
 				}
 			}

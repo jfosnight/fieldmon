@@ -17,15 +17,15 @@ except:
 
 app = Bottle()
 
-droneAddress = "/dev/ttyACM0"
-#droneAddress = "tcp:127.0.0.1:5760"
+#droneAddress = "/dev/ttyACM0"
+droneAddress = "tcp:127.0.0.1:5760"
 
 targetAlt = 10
 
 nodeList = {}
 ## Example List
-nodeList[1] = {'uploaded': False, 'lat': 37.7203396, 'lon': -97.2715991}
-nodeList[2] = {'uploaded': False, 'lat': 37.7201564, 'lon': -97.271533}
+#nodeList[1] = {'uploaded': False, 'lat': 37.7203396, 'lon': -97.2715991}
+#nodeList[2] = {'uploaded': False, 'lat': 37.7201564, 'lon': -97.271533}
 #nodeList[3] = {'uploaded': False, 'lat': 37.720754, 'lon': -97.270692}
 
 @app.route('/stream')
@@ -79,7 +79,7 @@ def node_create():
 
 
 @app.route('/node/<num>', method='POST')
-def node_id(num):
+def node_id_post(num):
     name = request.forms.get('name')
     lat = request.forms.get('lat')
     lng = request.forms.get('lng')
@@ -108,11 +108,36 @@ def node_id(num):
     return template('node.tpl', node=row, sensor_data=sensor_data)
 
 
+@app.route('/node/<num>/delete')
+def node_id_delete(num):
+    conn = sqlite3.connect("data.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("DELETE FROM node WHERE id = ?", tuple(num))
+
+    conn.commit()
+
+    return redirect("/node/")
 
 ## Sensor Data
 @app.route('/node/<num>/data', method='GET')
 def node_data(num):
     return template('data_upload.tpl')
+
+
+## Sensor Delete Data
+@app.route('/node/<num>/data/delete', method='GET')
+def node_data_delete(num):
+    conn = sqlite3.connect("data.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("DELETE FROM sensor_data WHERE node_id = ?", tuple(num))
+
+    conn.commit()
+
+    return node_id(num)
 
 @app.route('/node/<num>/data', method='POST')
 def node_data_post(num):
@@ -176,6 +201,7 @@ def node_data_post(num):
 @app.route('/image/')
 def images():
     conn = sqlite3.connect("data.db")
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
     c.execute("SELECT * FROM image ORDER BY timestamp ASC")
@@ -204,13 +230,23 @@ def take_image():
 
         camera = picamera.PiCamera()
 
-        sleep(1.5)
+        sleep(1)
 
         camera.capture('./images/' + filename)
         camera.close()
 
+        if vehicle:
+            lat = vehicle.location.global_frame.lat
+            lng = vehicle.location.global_frame.lon
+            alt = round(vehicle.location.global_frame.alt, 2)
+            heading = vehicle.heading
+        else:
+            lat = None
+            lng = None
+            alt = None
+            heading = None
 
-        c.execute("INSERT INTO image (file_name) VALUES (?)", (filename, ))
+        c.execute("INSERT INTO image (file_name, lat, lng, alt, heading) VALUES (?, ?, ?, ?, ?)", (filename, lat, lng, alt, heading))
 
         c.execute("SELECT * FROM image WHERE id = ?", (c.lastrowid, ))
         body = {}
@@ -244,12 +280,12 @@ controlStatus = ""
 
 import threading
 def drone_flight():
-    global controlStatus
+    global controlStatus, nodeList
     if not vehicle:
         controlStatus = "Disconnected"
         return "drone not connected"
 
-    flight_path = get_flight_path()
+    get_node_list()
 
     controlStatus = "Arming"
     ## Arm Vehcile
@@ -285,17 +321,51 @@ def drone_flight():
 
         print "Node %d" %(node)
 
-        loc = dronekit.LocationGlobalRelative(nodeList[node]['lat'], nodeList[node]['lon'], targetAlt)
         if nodeList[node]['uploaded'] == False:
+            loc = dronekit.LocationGlobalRelative(nodeList[node]['lat'], nodeList[node]['lon'], targetAlt)
             vehicle.simple_goto(loc)
-            #controlStatus = "Waiting on node upload. lat: %f, lon: %f" %(nodeList[node]['lat'], nodeList[node]['lon'])
-            ## Also add a timeout period here.  Probably 1.5 minutes
 
-            watchDogStart = time.time()
-            while nodeList[node]['uploaded'] == False and time.time() - watchDogStart < 120:
-                distance = distanceToNode = gcf_degrees(nodeList[node]['lat'], nodeList[node]['lon'], vehicle.location.global_frame.lat, vehicle.location.global_frame.lon)
-                controlStatus = "Distance to Node %d: %.2f m" % (node, distance)
+            ## Used for timer to prevent waiting too long.
+            watchDog = False
+            cameraTimer = time.time()
+            cameraEnable = 5
+            while True:
+                if vehicle.mode.name != "GUIDED":
+                    controlStatus = "Not in guided mode"
+                    return
+
+                if nodeList[node]['uploaded'] == True:
+                    break
+
+                distance = gcf_degrees(nodeList[node]['lat'], nodeList[node]['lon'], vehicle.location.global_frame.lat, vehicle.location.global_frame.lon)
+                if distance < 5 and watchDog == False:
+                    watchDog = True
+                    watchDogStart = time.time()
+                    #  Only take one more picture.
+                    cameraEnable -= 1
+
+                if watchDog:
+                    elapsedTime = time.time() - watchDogStart
+                    if elapsedTime > 90:
+                        break
+                    controlStatus = "Waiting for data from node %d.  Elapsed Time: %.2f" % (node, elapsedTime)
+                else:
+                    controlStatus = "Flying to node %d.  Distance: %.2f m" % (node, distance)
+
+                if time.time() - cameraTimer > 2 and cameraEnable > 0:
+                    print "Take Picture"
+                    if cameraEnable != 5:
+                        cameraEnable -= 1
+                    cameraTimer = time.time()
+
                 sleep(0.1)
+
+
+            # watchDogStart = time.time()
+            # while nodeList[node]['uploaded'] == False and time.time() - watchDogStart < 90  and vehicle.mode.name == "GUIDED":
+            #     distance = distanceToNode = gcf_degrees(nodeList[node]['lat'], nodeList[node]['lon'], vehicle.location.global_frame.lat, vehicle.location.global_frame.lon)
+            #     controlStatus = "Flying to node %d.  Distance: %.2f m" % (node, distance)
+            #     sleep(0.1)
 
     if vehicle.mode.name != "GUIDED":
         controlStatus = "Not in guided mode."
@@ -312,7 +382,8 @@ def drone_flight():
 
 
 
-def get_flight_path():
+def get_node_list():
+    global nodeList
     conn = sqlite3.connect("data.db")
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -320,11 +391,11 @@ def get_flight_path():
     c.execute("SELECT * FROM node")
     rows = c.fetchall()
 
-    flight_path = []
+    #flight_path = []
+    nodeList = {}
     for row in rows:
-        flight_path.append({"lat" : row['lat'], "lng" : row['lng']})
-
-    return flight_path
+        nodeList[int(row['id'])] = {'uploaded': False, 'lat' : float(row['lat']), "lon" : float(row['lng'])}
+        #flight_path.append({"lat" : row['lat'], "lng" : row['lng']})
 
 
 vehicle = None
@@ -427,19 +498,34 @@ def ws_drone_status():
         try:
             if vehicle:
                 status = ""
-                status += "Location: %s <br>" % vehicle.location.global_frame
-                status += "Local Location: %s <br>" % vehicle.location.local_frame
-                status += "Down: %f<br>" % (vehicle.location.local_frame.down or 0)
+                status += "Lat: %s, Long: %s, Alt: %s<br>" %(vehicle.location.global_frame.lat, vehicle.location.global_frame.lon, vehicle.location.global_frame.alt)
+                #status += "Location: %s <br>" % vehicle.location.global_frame
+                status += "Relative Pos: north: %.2f m, east: %.2f m, height: <b>%.2f m</b><br>" % (vehicle.location.local_frame.north or 0, vehicle.location.local_frame.east or 0, (vehicle.location.local_frame.down or 0) * -1)
+                status += "Heading: %s" % vehicle.heading
+                #status += "Local Location: %s <br>" % vehicle.location.local_frame
+                #status += "Down: %f<br>" % (vehicle.location.local_frame.down or 0)
                 #status += "Altitude: %s <br>" % vehicle.location.global_frame.alt
                 status += " GPS: %s <br>" % vehicle.gps_0
-                status += " Battery: %s <br>" % vehicle.battery
-                status += " Last Heartbeat: %s <br>" % vehicle.last_heartbeat
-                status += " Is Armable?: %s <br>" % vehicle.is_armable
-                status += " Armed: %s <br>" % vehicle.armed
-                status += " System status: <b>%s</b> <br>" % vehicle.system_status.state
-                status += " Mode: %s <br>" % vehicle.mode.name
+                #status += " Battery: %s <br>" % vehicle.battery
+                status += " Last Heartbeat: %s <br><br>" % vehicle.last_heartbeat
+                status += " Is Armable?: "
+                if vehicle.is_armable:
+                    status += "<div class='uk-badge uk-badge-success'>True</div>"
+                else:
+                    status += "<div class='uk-badge uk-badge-danger'>False</div>"
                 status += "<br>"
-                status += "Mission Status: %s<br>" % controlStatus
+                #status += " Is Armable?: %s <br>" % vehicle.is_armable
+                status += "Armed: "
+                if vehicle.armed:
+                    status += "<div class='uk-badge uk-badge-success'>True</div>"
+                else:
+                    status += "<div class='uk-badge uk-badge-warning'>False</div>"
+                status += "<br>"
+                #status += " Armed: %s <br>" % vehicle.armed
+                status += " Status: <b>%s</b> <br>" % vehicle.system_status.state
+                status += " Mode: <b>%s</b> <br>" % vehicle.mode.name
+                status += "<br>"
+                status += "Mission Status: <b>%s</b><br>" % controlStatus
 
                 wsock.send(status)
                 sleep(0.25)

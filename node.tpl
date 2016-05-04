@@ -38,14 +38,14 @@
 	          legend: { position: 'bottom' }
 	        };
 
-		
+
 		% if sensor_data:
 	        	var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
 	        	chart.draw(data, options);
 		% else:
 			document.getElementById("curve_chart").innerHTML = "<b>No Data Uploaded Yet</b>"
 		% end
-			
+
 	      }
 	    </script>
 
@@ -71,10 +71,18 @@
 		            <b>Longitude</b><br>
 		            {{node['lng']}}<br>
 
-			    <br>
-			    <a class="uk-button uk-button-primary" href="/node/{{node['id']}}/data">Upload Data</a>
+				    <br>
+				    <a class="uk-button uk-button-primary" href="/node/{{node['id']}}/data">Upload Data</a>
 
 		            <br>
+					<br>
+					<br>
+					<a class="uk-button uk-button-danger uk-button-small" href="/node/{{node['id']}}/data/delete">Clear Data</a>
+					&nbsp;&nbsp;
+					<a class="uk-button uk-button-danger uk-button-small" href="/node/{{node['id']}}/delete">Delete Node</a>
+					<br>
+
+
 		            <br>
 		            <h4><a data-uk-toggle="{target: '#edit-form'}"><i class='uk-icon-edit'></i> Edit</a></h4>
 		            <form class='uk-form uk-hidden uk-form-horizontal' method='POST' id='edit-form'>

@@ -1,7 +1,7 @@
 # fieldmon
 Class Project to develop Field Monitoring Sensor Network
 
-This project will develop an application to run on a compainion computer (Raspberry Pi) attached to a UAV (quadcopter) for collecting data from a number of independent sensors distrubeted on the ground.
+This project will develop an application to run on a companion computer (Raspberry Pi) attached to a UAV (quadcopter) for collecting data from a number of independent sensors distributed on the ground.
 
 
 ## Installation
@@ -21,6 +21,7 @@ This project will develop an application to run on a compainion computer (Raspbe
 ## AP Setup
 SSID: drone  
 PW: dronecomm
+IP: 192.168.42.1
 
 
 ## Resources

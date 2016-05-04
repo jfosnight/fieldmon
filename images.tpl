@@ -2,12 +2,12 @@
 <html>
 	<head>
 		<meta content="width=device-width,minimum-scale=1.0" name="viewport">
-	
+
 		<title>Images - FieldMon</title>
 		<link rel="stylesheet" href="/bower/uikit/css/uikit.almost-flat.min.css">
 		<script src="/bower/jquery/dist/jquery.min.js"></script>
 		<script src="/bower/uikit/js/uikit.min.js"></script>
-		
+
 		<link rel="stylesheet" href="/bower/uikit/css/components/notify.almost-flat.min.css">
 		<script src="/bower/uikit/js/components/notify.min.js"></script>
 
@@ -20,12 +20,12 @@
 		</style>
 
 	</head>
-	<body>	
+	<body>
 		<div class='uk-navbar'>
 			<ul class='uk-navbar-nav'>
 				<li><a href="/"><i class='uk-icon-home'></i> Home</a></li>
 			</ul>
-			
+
 			<div class='uk-navbar-content uk-navbar-center uk-navbar-brand'>Images - FieldMon</div>
 		</div>
 		<div id="content">
@@ -33,23 +33,31 @@
 			<!--Take Picture <a href="/image/take">New Picture</a><br>-->
 			<button class='uk-button uk-button-primary new-image-btn'><i class='uk-icon-image'></i> Take Picture</button><br>
 			<br>
-			
+
 			<table class='uk-table uk-table-striped uk-table-condensed'>
 				<thead>
 					<tr>
 						<th>ID</th>
 						<th>Filename</th>
+						<th>Lat</th>
+						<th>Long</th>
+						<th>Alt</th>
+						<th>Heading</th>
 						<th>Timestamp</th>
 						<th>URL</th>
 					</tr>
 				</thead>
 				% for image in images:
-				
+
 				% from datetime import datetime, tzinfo, timedelta
 				% td = timedelta(hours=5)
 				<tr>
-					<td>{{image[0]}}</td>
-					<td>{{image[1]}}</td>
+					<td>{{image['id']}}</td>
+					<td>{{image['filename']}}</td>
+					<td>{{image['lat']}}</td>
+					<td>{{image['lng']}}</td>
+					<td>{{image['alt']}}</td>
+					<td>{{image['heading']}}</td>
 					<td>{{(datetime.strptime(image[2], "%Y-%m-%d %H:%M:%S")-td).ctime()}}</td>
 					<td><a href="/image/{{image[1]}}" target="_blank">Image {{str(image[0]).zfill(4)}}</a></td>
 				</tr>
@@ -70,28 +78,28 @@
 							console.log(response);
 						} else {
 							var html = "";
-							
+
 							html += "<tr>";
-							
+
 							html += "<td>";
 							html += response.body.id;
 							html += "</td>";
-							
+
 							html += "<td>";
 							html += response.body.file_name;
 							html += "</td>";
-							
+
 							html += "<td>";
 							html += response.body.timestamp;
 							html += "</td>";
-							
+
 							html += "<td>";
 							html += "<a href='/image/" + response.body.file_name + "' target='_blank'>Image " + response.body.id + "</a>";
 							html += "</td>";
-							
+
 							html += "</tr>";
 							$("table").append(html);
-							
+
 							mssg.close();
 							$.UIkit.notify({message: "Picture Taken", status: "success"});
 						}
@@ -104,5 +112,3 @@
 		</script>
 	</body>
 </html>
-
-
