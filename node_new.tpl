@@ -66,9 +66,9 @@
 			navigator.geolocation.getCurrentPosition(function(position) {
 				$("[name='lat']").val(position.coords.latitude);
 				$("[name='lng']").val(position.coords.longitude);
-			}, function(){
-				alert("Issue Fetching Position");			
-			}, {enableHighAccuracy: true});
+			}, function(e){
+				alert(e.message);			
+			}, {enableHighAccuracy: true, timeout: 5000});
 
 
 		} else {

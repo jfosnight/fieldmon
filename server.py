@@ -17,16 +17,16 @@ except:
 
 app = Bottle()
 
-#droneAddress = "/dev/ttyACM0"
-droneAddress = "tcp:127.0.0.1:5760"
+droneAddress = "/dev/ttyACM0"
+#droneAddress = "tcp:127.0.0.1:5760"
 
 targetAlt = 10
 
 nodeList = {}
 ## Example List
-nodeList[1] = {'uploaded': False, 'lat': 37.720022, 'lon': -97.271768}
-nodeList[2] = {'uploaded': False, 'lat': 37.720711, 'lon': -97.271773}
-nodeList[3] = {'uploaded': False, 'lat': 37.720754, 'lon': -97.270692}
+nodeList[1] = {'uploaded': False, 'lat': 37.7203396, 'lon': -97.2715991}
+nodeList[2] = {'uploaded': False, 'lat': 37.7201564, 'lon': -97.271533}
+#nodeList[3] = {'uploaded': False, 'lat': 37.720754, 'lon': -97.270692}
 
 @app.route('/stream')
 def stream():
