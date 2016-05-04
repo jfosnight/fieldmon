@@ -4,6 +4,9 @@ from time import sleep
 from bottle import route, run, template, debug, static_file, request, redirect, abort, Bottle
 import sqlite3
 import tempfile
+import time
+
+from gcf import gcf_degrees
 
 import dronekit
 
@@ -13,6 +16,17 @@ except:
     pass
 
 app = Bottle()
+
+#droneAddress = "/dev/ttyACM0"
+droneAddress = "tcp:127.0.0.1:5760"
+
+targetAlt = 10
+
+nodeList = {}
+## Example List
+nodeList[1] = {'uploaded': False, 'lat': 37.720022, 'lon': -97.271768}
+nodeList[2] = {'uploaded': False, 'lat': 37.720711, 'lon': -97.271773}
+nodeList[3] = {'uploaded': False, 'lat': 37.720754, 'lon': -97.270692}
 
 @app.route('/stream')
 def stream():
@@ -102,7 +116,7 @@ def node_data(num):
 
 @app.route('/node/<num>/data', method='POST')
 def node_data_post(num):
-    global droneContinue
+    global nodeList
 
     temp_file = tempfile.TemporaryFile()
 
@@ -113,10 +127,10 @@ def node_data_post(num):
 
 
     temp_file.seek(0)
-    print temp_file.read()
+    print temp_file.read(200)
 
     temp_file.seek(0)
-    
+
     html = "<table>"
     data = []
     for line in temp_file.readlines():
@@ -150,8 +164,9 @@ def node_data_post(num):
     c.executemany(sqlText, data)
     conn.commit()
 
-    if dronePause:
-        droneContinue = True
+    if int(num) in nodeList:
+        nodeList[int(num)]['uploaded'] = True
+        print "Node Uploaded"
     return html
 
 
@@ -223,19 +238,13 @@ def image(filename):
 
 
 global vehicle
-global controlThread
 global controlStatus
-global dronePause
-global droneContinue
-
-dronePause = True
-droneContinue = True
 
 controlStatus = ""
 
 import threading
 def drone_flight():
-    global controlStatus, droneContinue, dronePause
+    global controlStatus
     if not vehicle:
         controlStatus = "Disconnected"
         return "drone not connected"
@@ -245,6 +254,9 @@ def drone_flight():
     controlStatus = "Arming"
     ## Arm Vehcile
     vehicle.mode = dronekit.VehicleMode("GUIDED")
+    while vehicle.mode != "GUIDED":
+        sleep(0.1)
+
     vehicle.airspeed = 5
     if not vehicle.armed:
         vehicle.armed = True
@@ -257,30 +269,37 @@ def drone_flight():
 
     controlStatus = "Takeoff"
     ## Takeoff to 20 meters
-    vehicle.simple_takeoff(10)
+    vehicle.simple_takeoff( targetAlt )
 
     controlStatus = "Waiting to reach altitude"
     ## Wait for it to reach Altitude
-    while (vehicle.location.local_frame.down or 0) * -1 < 10 * 0.95:
+    while (vehicle.location.local_frame.down or 0) * -1 < targetAlt * 0.95:
         sleep(0.1)
 
 
-    ## Fly to waypoint
-    #controlStatus = "Flying to Waypoint"
-    #a_location = dronekit.LocationGlobalRelative(-35.36300, 149.166022, 30)
-    #vehicle.simple_goto(a_location)
+    ## Fly to waypoints
+    for node in nodeList:
+        if vehicle.mode.name != "GUIDED":
+            controlStatus = "Not in guided mode"
+            return "Not in guided mode"
 
-    #while vehicle.location.global_frame.lat > -35.362990  and vehicle.location.global_frame.lon < 149.16600:
-    #   sleep(0.1)
+        print "Node %d" %(node)
 
-    # dronePause = True
-    # droneContinue = False
+        loc = dronekit.LocationGlobalRelative(nodeList[node]['lat'], nodeList[node]['lon'], targetAlt)
+        if nodeList[node]['uploaded'] == False:
+            vehicle.simple_goto(loc)
+            #controlStatus = "Waiting on node upload. lat: %f, lon: %f" %(nodeList[node]['lat'], nodeList[node]['lon'])
+            ## Also add a timeout period here.  Probably 1.5 minutes
 
-    controlStatus = "Waiting for Upload"
-    sleep(5)
-    # while not droneContinue:
-    #     sleep(0.1)
-    # droneContinue = False
+            watchDogStart = time.time()
+            while nodeList[node]['uploaded'] == False and time.time() - watchDogStart < 120:
+                distance = distanceToNode = gcf_degrees(nodeList[node]['lat'], nodeList[node]['lon'], vehicle.location.global_frame.lat, vehicle.location.global_frame.lon)
+                controlStatus = "Distance to Node %d: %.2f m" % (node, distance)
+                sleep(0.1)
+
+    if vehicle.mode.name != "GUIDED":
+        controlStatus = "Not in guided mode."
+        return "Error"
 
     controlStatus = "Returning Home"
     vehicle.mode = dronekit.VehicleMode("RTL")
@@ -313,9 +332,11 @@ vehicle = None
 def drone_connect():
     global vehicle
     if not vehicle:
-	vehicle = dronekit.connect("/dev/ttyACM0", wait_ready=True)
-        #vehicle = dronekit.connect("tcp:127.0.0.1:5760", wait_ready=True)
-        return "Connected to Drone"
+        try:
+    	    vehicle = dronekit.connect(droneAddress, wait_ready=True)
+            return "Connected to Drone"
+        except Exception as e:
+            return "Unable to Connect.  %s" %e
     else:
         return "Already Connected"
 
@@ -326,9 +347,9 @@ def drone_disconnect():
     if vehicle:
         vehicle.close()
         vehicle = None
-        return "Drone is Disconnected"
+        return "Disconnected"
     else:
-        return "Drone was already disconnected"
+        return "Disconnected"
 
 
 @app.route('/drone')

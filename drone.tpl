@@ -30,33 +30,42 @@
 
 		<div id="content">
             <button id='connect-btn' class="uk-button uk-button-primary">Connect</button>&nbsp;&nbsp;&nbsp;&nbsp;
-            <button id='disconnect-btn' class="uk-button">Disconnect</button><br>
+            <button id='disconnect-btn' class="uk-button">Disconnect</button>&nbsp;&nbsp;&nbsp;&nbsp;
+
+			Drone Connection Status: <span id="connection-status" class="uk-text-large"></span>
 			<br>
+			<hr>
 			<button id='takeoff-btn' class="uk-button">Take Off</button>&nbsp;&nbsp;&nbsp;&nbsp;
 			<button id='move-btn' class="uk-button">Move</button>&nbsp;&nbsp;&nbsp;&nbsp;
 			<button id='mission-btn' class="uk-button uk-button-primary">Fly Mission</button>&nbsp;&nbsp;&nbsp;&nbsp;
 			<button id='rtl-btn' class="uk-button">Return Home</button><br>
-            <br>
-            Drone Connection Status: <span id="status"></span>
+			<br>
+			Status: <span id="status" class="uk-text-large"></span>
 			<br>
 			<hr>
-			<br>
 			<h2>Real-time Drone Info</h2>
 
-			<button id='ws-connect-btn' class="uk-button uk-button-primary">Connect</button>&nbsp;&nbsp;&nbsp;&nbsp;
+			<!--<button id='ws-connect-btn' class="uk-button uk-button-primary">Connect</button>&nbsp;&nbsp;&nbsp;&nbsp;
             <button id='ws-disconnect-btn' class="uk-button">Disconnect</button><br>
-			<br>
-			<h3>Drone Stats</h3>
+			<br>-->
+			<!--<h3>Drone Stats</h3>-->
 			<div id="ws-status"></div>
         </div>
 
         <script>
             $("#connect-btn").on("click", function(){
-				$("#status").html("Connecting...");
+				$("#connection-status").html("<div class='uk-badge uk-badge-warning uk-text-large'>Connecting...</div>");
                 $.ajax({
 					url: "/drone/connect",
 					success: function(response){
-						$("#status").html(response);
+						var html = "";
+						if(response === "Connected to Drone" || response === "Already Connected"){
+							wsConnect();
+							html += "<div class='uk-badge uk-badge-success uk-text-large'>Connected</div>";
+						} else {
+							html += "<div class='uk-badge uk-badge-danger uk-text-large'>" + response + "</div>";
+						}
+						$("#connection-status").html(html);
 					}
 				});
             });
@@ -65,7 +74,14 @@
                 $.ajax({
 					url: "/drone/disconnect",
 					success: function(response){
-						$("#status").html(response);
+						var html = "";
+						wsDisconnect();
+						if(response === "Disconnected"){
+							html += "<div class='uk-badge uk-badge-danger uk-text-large'>Disconnected</div>";
+						} else {
+							html += "<div class='uk-badge uk-badge-danger uk-text-large'>" + response + "</div>";
+						}
+						$("#connection-status").html(html);
 					}
 				});
             });
@@ -112,8 +128,7 @@
 
 
 			var ws = null;
-
-            $("#ws-connect-btn").on("click", function(){
+			function wsConnect(){
 				if(!ws){
 					ws = new WebSocket("ws://" + window.location.host + "/ws/drone/status");
 	                ws.onopen = function() {
@@ -126,11 +141,23 @@
 						$("#ws-status").html("Disconnected");
 					}
 				}
+			}
+
+			function wsDisconnect(){
+				if(ws){
+					ws.close();
+					ws = null;
+				}
+				console.log("WS: ", ws);
+			}
+
+
+            $("#ws-connect-btn").on("click", function(){
+				wsConnect();
             });
 
             $("#ws-disconnect-btn").on("click", function(){
-                ws.close();
-				ws = null;
+				wsDisconnect();
             });
         </script>
 	</body>
